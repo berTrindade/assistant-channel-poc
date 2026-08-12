@@ -17,6 +17,12 @@ import {
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import {
+  createPendingConfirmations,
+  intentKey,
+  issueToken,
+  redeemToken,
+} from './confirm.ts';
 import { resolvePrincipal } from './principal.ts';
 import { RuleViolation, bookSlot, cancelBooking } from './rules.ts';
 import { bookingsFor, createStore, listOpenSlots } from './store.ts';
@@ -48,42 +54,57 @@ const toolError = (message: string) => ({
   isError: true,
 });
 
+const pendingConfirmations = createPendingConfirmations();
+
 /**
  * Ask the human before touching a real record.
  *
- * Two mechanisms, in order of preference. Elicitation puts the question in the host's
- * own UI, which is the honest place for it, but not every host answers one. When that
- * fails, the tool refuses and tells the model to run the confirmation as a turn of
- * conversation and call back with `confirm: true`.
- *
- * The fallback is a real confirmation, not a bypass: the model still has to put the
- * change in front of the user and get a yes before the second call. The 2026-07-28 spec
- * folds both into an `input_required` result; when the SDK exposes it, this helper is
- * the only thing that changes.
+ * Elicitation first, because it puts the question in the host's own UI where the user
+ * actually answers it. Where the host will not answer one, fall back to a server-issued
+ * token: see confirm.ts for why the token exists and what it is and is not worth.
  */
 const confirmed = async (
   server: McpServer,
   summary: string,
-  confirmArgument?: boolean,
-): Promise<boolean> => {
-  if (confirmArgument === true) return true;
+  intent: string,
+  token?: string,
+): Promise<{ ok: true } | { ok: false; message: string }> => {
+  if (token !== undefined) {
+    return redeemToken(pendingConfirmations, token, intent)
+      ? { ok: true }
+      : {
+          ok: false,
+          message:
+            'That confirmation token is not valid for this change, or has already been used. Nothing was saved. Start again without a token.',
+        };
+  }
 
   try {
     const response = await server.server.elicitInput({
       message: summary,
       requestedSchema: { type: 'object', properties: {}, required: [] },
     });
-    return response.action === 'accept';
+    if (response.action === 'accept') return { ok: true };
+    return { ok: false, message: 'Not confirmed, so nothing was saved.' };
   } catch {
-    return false;
+    // Host will not answer an elicitation. Fall through to the token exchange.
   }
+
+  const fresh = issueToken(pendingConfirmations, intent);
+  return {
+    ok: false,
+    message:
+      `Nothing saved yet. Say this to the user, in your own words, and wait for their answer: "${summary}" ` +
+      `If, and only if, they agree, call this tool again with confirmationToken "${fresh}". ` +
+      `Do not call it again with the token if they decline or say nothing.`,
+  };
 };
 
-const CONFIRM_ARGUMENT = z
-  .boolean()
+const CONFIRMATION_TOKEN = z
+  .string()
   .optional()
   .describe(
-    'Leave unset on the first call. Set to true only after the user has been told exactly what will change and has agreed.',
+    'Omit on the first call. The tool will refuse and hand back a token; present that token here only after the user has agreed to the change.',
   );
 
 export const buildServer = (authorization?: string) => {
@@ -179,21 +200,21 @@ export const buildServer = (authorization?: string) => {
           .string()
           .optional()
           .describe('Stable key for this attempt, so a retry is recognised as the same booking'),
-        confirm: CONFIRM_ARGUMENT,
+        confirmationToken: CONFIRMATION_TOKEN,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
-    async ({ slotId, idempotencyKey, confirm }) => {
+    async ({ slotId, idempotencyKey, confirmationToken }) => {
       const slot = store.slots.get(slotId);
       if (!slot) return toolError(`No slot with id ${slotId}.`);
 
-      const summary = `Book ${slot.service} at ${slot.startsAt}?`;
-      if (!(await confirmed(server, summary, confirm))) {
-        return toolError(
-          `Nothing saved. Tell the user you are about to book ${slot.service} at ${slot.startsAt}, ` +
-            `ask them to confirm, and only then call this tool again with confirm set to true.`,
-        );
-      }
+      const gate = await confirmed(
+        server,
+        `Book ${slot.service} at ${slot.startsAt}?`,
+        intentKey('book_slot', { slotId }),
+        confirmationToken,
+      );
+      if (!gate.ok) return toolError(gate.message);
 
       try {
         const { booking, replayed } = bookSlot(store, principal, slotId, idempotencyKey);
@@ -222,16 +243,19 @@ export const buildServer = (authorization?: string) => {
       description: 'Cancel one of this account’s bookings. Confirms with the user before saving.',
       inputSchema: {
         bookingId: z.string().describe('Id of the booking, from get_bookings'),
-        confirm: CONFIRM_ARGUMENT,
+        confirmationToken: CONFIRMATION_TOKEN,
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
-    async ({ bookingId, confirm }) => {
-      if (!(await confirmed(server, `Cancel booking ${bookingId}?`, confirm))) {
-        return toolError(
-          `Nothing saved. Tell the user you are about to cancel booking ${bookingId}, ask them ` +
-            `to confirm, and only then call this tool again with confirm set to true.`,
-        );
+    async ({ bookingId, confirmationToken }) => {
+      const gate = await confirmed(
+        server,
+        `Cancel booking ${bookingId}?`,
+        intentKey('cancel_booking', { bookingId }),
+        confirmationToken,
+      );
+      if (!gate.ok) {
+        return toolError(gate.message);
       }
 
       try {
