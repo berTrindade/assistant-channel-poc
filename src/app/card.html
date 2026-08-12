@@ -1,0 +1,72 @@
+<!--
+  A card view.
+
+  ponytail: hand-rolled postMessage bridge, roughly 30 lines instead of bundling
+  @modelcontextprotocol/ext-apps' App class. Fine for reading a tool result; swap in the
+  App class the moment this card needs to call tools back or push context, because
+  reimplementing that half is not lazy, it is a second protocol to maintain.
+
+  Not verified against a live host. The server side is; this is the part you should
+  open in a real client before believing it.
+-->
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    font: 15px/1.5 ui-sans-serif, system-ui, sans-serif;
+    color: #16202c;
+    background: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e8edf3; background: #12171d; }
+    .row { border-color: #2a333e; }
+    .muted { color: #93a1b1; }
+  }
+  .wrap { padding: 16px; max-width: 520px; }
+  h1 { font-size: 15px; margin: 0 0 12px; letter-spacing: 0.02em; text-transform: uppercase; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid #e3e8ee; }
+  .row:last-child { border-bottom: 0; }
+  .muted { color: #5c6b7a; font-size: 13px; }
+  .empty { padding: 10px 0; }
+</style>
+
+<div class="wrap">
+  <h1>Your bookings</h1>
+  <div id="list"><div class="empty muted">Waiting for the host to send data…</div></div>
+</div>
+
+<script>
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = String(text);
+    return node;
+  };
+
+  const renderRow = (booking) => {
+    const row = el('div', 'row');
+    const left = el('span');
+    left.append(el('span', undefined, booking.service), el('br'), el('span', 'muted', booking.startsAt));
+    row.append(left, el('span', 'muted', booking.status));
+    return row;
+  };
+
+  const render = (bookings) => {
+    const list = document.getElementById('list');
+    list.replaceChildren(
+      ...(bookings?.length
+        ? bookings.map(renderRow)
+        : [el('div', 'empty muted', 'Nothing booked yet.')]),
+    );
+  };
+
+  // The host pushes the tool result in. Message shapes differ between hosts, so read
+  // defensively rather than asserting one.
+  window.addEventListener('message', (event) => {
+    const data = event.data ?? {};
+    const payload = data.params?.structuredContent ?? data.structuredContent ?? data.result;
+    if (payload?.bookings) render(payload.bookings);
+  });
+
+  window.parent?.postMessage({ jsonrpc: '2.0', id: 1, method: 'ui/initialize', params: {} }, '*');
+</script>
