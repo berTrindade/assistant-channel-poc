@@ -130,7 +130,11 @@ If logic starts accumulating in `server.ts`, the shape has drifted. Decisions be
 
 **The confirmation is issued by the server, not claimed by the model.** The first version of this took a `confirm: boolean` argument. A real host broke it in under a minute: told "Book slot-101", the model set `confirm` to true on the first call, reasoning that the instruction was itself the agreement, and the booking landed with nothing asked.
 
-So the gate moved. `book_slot` tries host elicitation first, and where the host will not answer one, it refuses and hands back a single-use token bound to that exact change. The model cannot invent a token, so it cannot collapse the two turns into one. What that buys is that the change is stated before anything saves, and a token minted for a booking cannot be spent on a cancellation. What it does not buy is proof a human said yes; only host-mediated elicitation gives you that. See `confirm.ts`.
+So the gate moved. `book_slot` tries host elicitation first, and where the host will not answer one, it refuses and hands back a signed token bound to that exact change. The model cannot forge one, so it cannot collapse the two turns into one.
+
+The token carries its own proof rather than being looked up: the change and the expiry are encoded in it and signed, so any instance can verify a token it did not issue. The first attempt at this kept valid tokens in a `Map`, which worked on one process and would have failed behind a load balancer, reintroducing exactly the instance affinity the stateless protocol removed. Set `CONFIRMATION_SECRET` so every replica shares it.
+
+What that buys: the change is stated before anything saves, and a token minted for a booking cannot be spent on a cancellation. What it does not buy: proof a human said yes, which only host elicitation gives you, and single use, since a self-contained token can be replayed until it expires. The write path underneath is idempotent and contention-checked, so a replay books the slot once. See `confirm.ts`.
 
 **Identity is one function.** `resolvePrincipal` ignores the request and returns a shared demo account. That single fact is what makes this a preview and not a pilot: everyone who connects sees and mutates the same records. Swapping the body for token verification is the whole change; nothing else in the server reads the request.
 

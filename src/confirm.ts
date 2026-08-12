@@ -1,37 +1,46 @@
 /**
  * The confirmation gate.
  *
- * First attempt at this used a `confirm: boolean` argument on the write tools. A real
- * host proved that worthless within a minute: told "Book slot-101", the model set
- * confirm to true on the first call, reasoning that the instruction was itself the
- * agreement, and the booking landed with nothing asked. A flag the model controls is a
- * flag the model will set.
+ * Two mistakes led here, and both are worth keeping written down.
  *
- * So the server issues the confirmation instead. The first call gets no write and a
- * token that only exists here. The second call must present that exact token, bound to
- * that exact change, and it is consumed on use. The model cannot invent one, so it
- * cannot collapse the two turns into one.
+ * The first version took a `confirm: boolean` argument. A real host broke it in under a
+ * minute: told "Book slot-101", the model set confirm to true on the first call,
+ * reasoning that the instruction was itself the agreement, and the booking landed with
+ * nothing asked. A flag the model controls is a flag the model will set.
  *
- * What this buys, precisely: the change is stated to the user before anything is saved,
- * and a token minted for booking a slot cannot be spent cancelling one. What it does not
- * buy is proof that a human said yes, because no server-side mechanism can prove that.
- * Only host-mediated elicitation can, which is why the tools still try that first and
- * treat this as the fallback.
+ * The second version issued a server-side token and kept the valid ones in a Map. That
+ * fixed the forgery and quietly reintroduced exactly what the stateless protocol had
+ * just removed: a request that only one instance can serve. Behind two replicas, a token
+ * minted on A and presented to B is refused for no reason the user can see.
  *
- * ponytail: in-memory map, single process, no expiry. Two ceilings, and the second is
- * the one that bites. Tokens need a TTL the moment this outlives a demo. More
- * importantly they are process-local, so behind two replicas a token minted on one and
- * presented to the other is refused for no reason the user can see. The protocol is
- * stateless by design and this map quietly reintroduces the affinity it removed. Move it
- * to the same store as the bookings before this runs anywhere with more than one
- * instance.
+ * So the ticket now carries its own proof. The intent and the expiry are encoded in the
+ * token and signed, so any instance can verify one without having been the instance that
+ * issued it. Nothing is remembered anywhere. That is the same shape the spec's
+ * multi-round-trip requests use, where the server returns opaque state and the client
+ * echoes it back on the retry.
+ *
+ * The trade: a signed token can be replayed until it expires, where a Map entry could be
+ * deleted on use. That is acceptable here because the write path underneath is already
+ * idempotent and contention-checked, so a replay books the same slot once rather than
+ * twice. If a future write is not safe to repeat, it needs its own guard, not a
+ * different token.
+ *
+ * ponytail: HMAC with a shared secret, five minute life. Good enough while every replica
+ * can hold the same secret. Asymmetric signing only if the verifier stops being the
+ * issuer.
  */
 
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
-export type PendingConfirmations = Map<string, string>;
+const DEFAULT_TTL_MS = 5 * 60_000;
 
-export const createPendingConfirmations = (): PendingConfirmations => new Map();
+/**
+ * A random per-process secret is a development convenience and nothing more: it works on
+ * one instance and fails across replicas in precisely the way this file exists to avoid.
+ * Set CONFIRMATION_SECRET anywhere it matters.
+ */
+export const confirmationSecret = (): string =>
+  process.env.CONFIRMATION_SECRET ?? randomUUID();
 
 /**
  * An intent key names the exact change being confirmed. Two different changes never
@@ -40,28 +49,46 @@ export const createPendingConfirmations = (): PendingConfirmations => new Map();
 export const intentKey = (tool: string, args: Record<string, unknown>): string =>
   `${tool}:${JSON.stringify(args, Object.keys(args).sort())}`;
 
-export const issueToken = (pending: PendingConfirmations, intent: string): string => {
-  const token = randomUUID();
-  pending.set(token, intent);
-  return token;
+const sign = (secret: string, payload: string): string =>
+  createHmac('sha256', secret).update(payload).digest('base64url');
+
+const matches = (a: string, b: string): boolean => {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+};
+
+export const issueToken = (
+  secret: string,
+  intent: string,
+  now: number,
+  ttlMs: number = DEFAULT_TTL_MS,
+): string => {
+  const payload = Buffer.from(JSON.stringify({ intent, exp: now + ttlMs })).toString('base64url');
+  return `${payload}.${sign(secret, payload)}`;
 };
 
 /**
- * Spend a token against the change it was issued for. Returns false for an unknown
- * token, a token issued for a different change, or one already used.
- *
- * A token is consumed only when it matches. Burning it on a mismatch would punish a
- * model that misfires once by forcing the user to be asked again, and buys nothing:
- * a token only ever unlocks the single change it names, so presenting it elsewhere is
- * refused however many times it happens.
+ * Verify a token against the change being attempted. Returns false for anything that is
+ * not a token this secret issued, for this exact change, still inside its life.
  */
 export const redeemToken = (
-  pending: PendingConfirmations,
+  secret: string,
   token: string,
   intent: string,
+  now: number,
 ): boolean => {
-  if (pending.get(token) !== intent) return false;
+  const [payload, signature] = token.split('.');
+  if (!payload || !signature) return false;
+  if (!matches(sign(secret, payload), signature)) return false;
 
-  pending.delete(token);
-  return true;
+  try {
+    const claim = JSON.parse(Buffer.from(payload, 'base64url').toString()) as {
+      intent?: unknown;
+      exp?: unknown;
+    };
+    return claim.intent === intent && typeof claim.exp === 'number' && claim.exp > now;
+  } catch {
+    return false;
+  }
 };

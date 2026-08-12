@@ -17,12 +17,7 @@ import {
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
-import {
-  createPendingConfirmations,
-  intentKey,
-  issueToken,
-  redeemToken,
-} from './confirm.ts';
+import { confirmationSecret, intentKey, issueToken, redeemToken } from './confirm.ts';
 import { resolvePrincipal } from './principal.ts';
 import { RuleViolation, bookSlot, cancelBooking } from './rules.ts';
 import { bookingsFor, createStore, listOpenSlots } from './store.ts';
@@ -54,7 +49,7 @@ const toolError = (message: string) => ({
   isError: true,
 });
 
-const pendingConfirmations = createPendingConfirmations();
+const secret = confirmationSecret();
 
 /**
  * Ask the human before touching a real record.
@@ -70,12 +65,12 @@ const confirmed = async (
   token?: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> => {
   if (token !== undefined) {
-    return redeemToken(pendingConfirmations, token, intent)
+    return redeemToken(secret, token, intent, Date.now())
       ? { ok: true }
       : {
           ok: false,
           message:
-            'That confirmation token is not valid for this change, or has already been used. Nothing was saved. Start again without a token.',
+            'That confirmation token is not valid for this change, or has expired. Nothing was saved. Start again without a token.',
         };
   }
 
@@ -90,7 +85,7 @@ const confirmed = async (
     // Host will not answer an elicitation. Fall through to the token exchange.
   }
 
-  const fresh = issueToken(pendingConfirmations, intent);
+  const fresh = issueToken(secret, intent, Date.now());
   return {
     ok: false,
     message:
