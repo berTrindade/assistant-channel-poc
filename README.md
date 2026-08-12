@@ -4,6 +4,8 @@ A working reference implementation of the **assistant channel** shape: an existi
 
 The shape, when to reach for it, and the six questions that disqualify most candidates are in [solution-catalogue](https://github.com/berTrindade/solution-catalogue/blob/main/types/assistant-channel.md). This repo is the part that has to actually run.
 
+Why each choice was made, and what it cost, is in [decisions/](decisions/). Every record there exists because something was built, run against a real host, and found to be wrong in a way the specification did not predict.
+
 ## Why this exists
 
 The catalogue's proof for this shape is a preview whose only guarded write is a monotonic reading, which is the easiest guarded write there is: one user, one direction, no contention. It proves the shape but leaves the hard half untested.
