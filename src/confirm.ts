@@ -18,8 +18,13 @@
  * Only host-mediated elicitation can, which is why the tools still try that first and
  * treat this as the fallback.
  *
- * ponytail: in-memory map with no expiry, because the process is the session. Give
- * tokens a TTL the moment this outlives a demo.
+ * ponytail: in-memory map, single process, no expiry. Two ceilings, and the second is
+ * the one that bites. Tokens need a TTL the moment this outlives a demo. More
+ * importantly they are process-local, so behind two replicas a token minted on one and
+ * presented to the other is refused for no reason the user can see. The protocol is
+ * stateless by design and this map quietly reintroduces the affinity it removed. Move it
+ * to the same store as the bookings before this runs anywhere with more than one
+ * instance.
  */
 
 import { randomUUID } from 'node:crypto';
