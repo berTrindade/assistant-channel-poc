@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node src/server.ts",
+    "start:stdio": "node src/stdio.ts",
     "test": "node --test",
     "typecheck": "tsc --noEmit"
   },

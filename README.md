@@ -29,6 +29,32 @@ curl -s -X POST http://localhost:3001/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_slots","arguments":{}}}'
 ```
 
+## Two entry points
+
+| Entry | Transport | Use when |
+|---|---|---|
+| `npm start` | Streamable HTTP on :3001 | A cloud host has to reach you, so you also need a tunnel or a deployment |
+| `npm run start:stdio` | stdio | The host can spawn a process locally: no port, no tunnel, no public address |
+
+The stdio route matters more than it looks. A cloud host needs a publicly reachable HTTPS address and, on a managed workspace, an administrator who has enabled custom connectors. A host that spawns a local process needs neither. Same tool contract either way, which is the point of keeping the contract separate from the transport.
+
+## Using it in Claude Desktop
+
+Add this to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart Claude:
+
+```json
+{
+  "mcpServers": {
+    "assistant-channel-poc": {
+      "command": "node",
+      "args": ["/absolute/path/to/assistant-channel-poc/src/stdio.ts"]
+    }
+  }
+}
+```
+
+No tunnel, and nothing for an administrator to have switched off.
+
 ## Using it in ChatGPT
 
 ChatGPT cannot reach `localhost`, so the server needs a public HTTPS address:
