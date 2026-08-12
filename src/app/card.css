@@ -1,0 +1,54 @@
+:root { color-scheme: light dark; }
+
+body {
+  margin: 0;
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color: #16202c;
+  background: #ffffff;
+}
+
+.wrap { padding: 16px 18px; }
+
+h1 {
+  margin: 0 0 14px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5c6b7a;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid #e3e8ee;
+}
+
+.row:last-child { border-bottom: 0; }
+.row.cancelled .service { text-decoration: line-through; }
+
+.service { font-weight: 600; }
+.when, .empty { color: #5c6b7a; font-size: 13px; }
+.empty { padding: 11px 0; }
+
+.status {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.status.confirmed { background: #e6f2ec; color: #1c6b4a; }
+.status.cancelled { background: #f0f1f3; color: #6b7280; }
+
+@media (prefers-color-scheme: dark) {
+  body { color: #e8edf3; background: #12171d; }
+  h1, .when, .empty { color: #93a1b1; }
+  .row { border-color: #262f3a; }
+  .status.confirmed { background: #14342a; color: #7fd3ac; }
+  .status.cancelled { background: #23282f; color: #93a1b1; }
+}

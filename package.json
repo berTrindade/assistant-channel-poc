@@ -8,6 +8,7 @@
     "node": ">=22.6"
   },
   "scripts": {
+    "build:card": "node scripts/build-card.mjs",
     "start": "node src/server.ts",
     "start:stdio": "node src/stdio.ts",
     "test": "node --test",
@@ -24,6 +25,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
+    "esbuild": "^0.28.2",
     "typescript": "^5.7.0"
   }
 }
