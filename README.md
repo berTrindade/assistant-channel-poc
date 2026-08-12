@@ -122,7 +122,9 @@ If logic starts accumulating in `server.ts`, the shape has drifted. Decisions be
 
 ## Three things worth reading the code for
 
-**Confirmation refuses rather than degrades.** `book_slot` asks the host to confirm via elicitation. A host that does not support elicitation gets a refusal and an explanation, not a silent write. That is deliberate: a confirmation you skip when it is inconvenient is not a confirmation. The 2026-07-28 spec adds an `input_required` tool result that does this without the extra round trip, and when the SDK exposes it, `confirmed()` in `server.ts` is the only thing that changes.
+**The confirmation is issued by the server, not claimed by the model.** The first version of this took a `confirm: boolean` argument. A real host broke it in under a minute: told "Book slot-101", the model set `confirm` to true on the first call, reasoning that the instruction was itself the agreement, and the booking landed with nothing asked.
+
+So the gate moved. `book_slot` tries host elicitation first, and where the host will not answer one, it refuses and hands back a single-use token bound to that exact change. The model cannot invent a token, so it cannot collapse the two turns into one. What that buys is that the change is stated before anything saves, and a token minted for a booking cannot be spent on a cancellation. What it does not buy is proof a human said yes; only host-mediated elicitation gives you that. See `confirm.ts`.
 
 **Identity is one function.** `resolvePrincipal` ignores the request and returns a shared demo account. That single fact is what makes this a preview and not a pilot: everyone who connects sees and mutates the same records. Swapping the body for token verification is the whole change; nothing else in the server reads the request.
 
