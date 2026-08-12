@@ -3,7 +3,10 @@
     "target": "ES2023",
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "lib": ["ES2023"],
+    // DOM is here for src/app/card.ts, which runs in the host's iframe rather than in
+    // Node. One tsconfig rather than two, on the grounds that a five-file server
+    // reaching for `document` by accident would not survive its first run.
+    "lib": ["ES2023", "DOM"],
     "strict": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
