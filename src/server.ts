@@ -25,7 +25,24 @@ import { RuleViolation, bookSlot, cancelBooking } from './rules.ts';
 import { bookingsFor, createStore, listOpenSlots } from './store.ts';
 
 const PORT = Number(process.env.PORT ?? 3001);
+
+/**
+ * The same card, declared twice, because the two hosts that render cards do not agree.
+ *
+ *   MCP Apps (Claude, Copilot, Goose)  _meta.ui.resourceUri  + text/html;profile=mcp-app
+ *   OpenAI Apps SDK (ChatGPT)          _meta['openai/outputTemplate'] + text/html+skybridge
+ *
+ * One HTML file, two registrations, and the tool advertises both keys. Hosts read the one
+ * they know and ignore the other. This is what "host-neutral tool contract" costs in
+ * practice today, and it is the sort of thing that belongs in the catalogue page rather
+ * than being rediscovered per engagement.
+ *
+ * ponytail: two registrations beat a content-negotiation layer. Delete one the day the
+ * conventions converge.
+ */
 const CARD_URI = 'ui://bookings/card.html';
+const CARD_URI_OPENAI = 'ui://bookings/card-openai.html';
+const SKYBRIDGE_MIME = 'text/html+skybridge';
 
 // One store for the process. The MCP server instance is per request (the protocol is
 // stateless), so anything that must outlive a request cannot live inside it.
@@ -39,14 +56,23 @@ const toolError = (message: string) => ({
 /**
  * Ask the human before touching a real record.
  *
- * Elicitation is the mechanism hosts support today. The 2026-07-28 spec adds an
- * `input_required` tool result that does this without a second round trip; when the SDK
- * exposes it, this helper is the only thing that changes.
+ * Two mechanisms, in order of preference. Elicitation puts the question in the host's
+ * own UI, which is the honest place for it, but not every host answers one. When that
+ * fails, the tool refuses and tells the model to run the confirmation as a turn of
+ * conversation and call back with `confirm: true`.
  *
- * A host that supports neither is not a reason to skip the confirmation. It is a reason
- * to refuse the write and say why.
+ * The fallback is a real confirmation, not a bypass: the model still has to put the
+ * change in front of the user and get a yes before the second call. The 2026-07-28 spec
+ * folds both into an `input_required` result; when the SDK exposes it, this helper is
+ * the only thing that changes.
  */
-const confirmed = async (server: McpServer, summary: string): Promise<boolean> => {
+const confirmed = async (
+  server: McpServer,
+  summary: string,
+  confirmArgument?: boolean,
+): Promise<boolean> => {
+  if (confirmArgument === true) return true;
+
   try {
     const response = await server.server.elicitInput({
       message: summary,
@@ -57,6 +83,13 @@ const confirmed = async (server: McpServer, summary: string): Promise<boolean> =
     return false;
   }
 };
+
+const CONFIRM_ARGUMENT = z
+  .boolean()
+  .optional()
+  .describe(
+    'Leave unset on the first call. Set to true only after the user has been told exactly what will change and has agreed.',
+  );
 
 const buildServer = (authorization?: string) => {
   const principal = resolvePrincipal(authorization);
@@ -114,7 +147,10 @@ const buildServer = (authorization?: string) => {
       description: 'Show the bookings held by this account.',
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
-      _meta: { ui: { resourceUri: CARD_URI } },
+      _meta: {
+        ui: { resourceUri: CARD_URI },
+        'openai/outputTemplate': CARD_URI_OPENAI,
+      },
     },
     async () => {
       const bookings = bookingsFor(store, principal.id).map((booking) => ({
@@ -148,16 +184,20 @@ const buildServer = (authorization?: string) => {
           .string()
           .optional()
           .describe('Stable key for this attempt, so a retry is recognised as the same booking'),
+        confirm: CONFIRM_ARGUMENT,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
-    async ({ slotId, idempotencyKey }) => {
+    async ({ slotId, idempotencyKey, confirm }) => {
       const slot = store.slots.get(slotId);
       if (!slot) return toolError(`No slot with id ${slotId}.`);
 
-      const ok = await confirmed(server, `Book ${slot.service} at ${slot.startsAt}?`);
-      if (!ok) {
-        return toolError('Not booked. The change was not confirmed, so nothing was saved.');
+      const summary = `Book ${slot.service} at ${slot.startsAt}?`;
+      if (!(await confirmed(server, summary, confirm))) {
+        return toolError(
+          `Nothing saved. Tell the user you are about to book ${slot.service} at ${slot.startsAt}, ` +
+            `ask them to confirm, and only then call this tool again with confirm set to true.`,
+        );
       }
 
       try {
@@ -185,13 +225,18 @@ const buildServer = (authorization?: string) => {
     {
       title: 'Cancel a booking',
       description: 'Cancel one of this account’s bookings. Confirms with the user before saving.',
-      inputSchema: { bookingId: z.string().describe('Id of the booking, from get_bookings') },
+      inputSchema: {
+        bookingId: z.string().describe('Id of the booking, from get_bookings'),
+        confirm: CONFIRM_ARGUMENT,
+      },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     },
-    async ({ bookingId }) => {
-      const ok = await confirmed(server, `Cancel booking ${bookingId}?`);
-      if (!ok) {
-        return toolError('Not cancelled. The change was not confirmed, so nothing was saved.');
+    async ({ bookingId, confirm }) => {
+      if (!(await confirmed(server, `Cancel booking ${bookingId}?`, confirm))) {
+        return toolError(
+          `Nothing saved. Tell the user you are about to cancel booking ${bookingId}, ask them ` +
+            `to confirm, and only then call this tool again with confirm set to true.`,
+        );
       }
 
       try {
@@ -207,15 +252,20 @@ const buildServer = (authorization?: string) => {
     },
   );
 
+  const readCard = () => fs.readFile(path.join(import.meta.dirname, 'app', 'card.html'), 'utf-8');
+
   registerAppResource(server, 'bookings-card', CARD_URI, { mimeType: RESOURCE_MIME_TYPE }, async () => ({
-    contents: [
-      {
-        uri: CARD_URI,
-        mimeType: RESOURCE_MIME_TYPE,
-        text: await fs.readFile(path.join(import.meta.dirname, 'app', 'card.html'), 'utf-8'),
-      },
-    ],
+    contents: [{ uri: CARD_URI, mimeType: RESOURCE_MIME_TYPE, text: await readCard() }],
   }));
+
+  server.registerResource(
+    'bookings-card-openai',
+    CARD_URI_OPENAI,
+    { mimeType: SKYBRIDGE_MIME },
+    async () => ({
+      contents: [{ uri: CARD_URI_OPENAI, mimeType: SKYBRIDGE_MIME, text: await readCard() }],
+    }),
+  );
 
   return server;
 };

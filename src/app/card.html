@@ -60,12 +60,25 @@
     );
   };
 
-  // The host pushes the tool result in. Message shapes differ between hosts, so read
-  // defensively rather than asserting one.
+  // Three ways in, because the two host families disagree about how a card gets its data.
+  //
+  //   ChatGPT (Apps SDK)  window.openai.toolOutput, refreshed via an openai:set_globals event
+  //   MCP Apps hosts      a postMessage carrying the tool result
+  //
+  // Read whichever arrives. None of them is load-bearing on its own.
+  const fromOpenai = () => window.openai?.toolOutput;
+
+  const tryRender = (payload) => {
+    if (payload?.bookings) render(payload.bookings);
+  };
+
+  tryRender(fromOpenai());
+
+  window.addEventListener('openai:set_globals', () => tryRender(fromOpenai()));
+
   window.addEventListener('message', (event) => {
     const data = event.data ?? {};
-    const payload = data.params?.structuredContent ?? data.structuredContent ?? data.result;
-    if (payload?.bookings) render(payload.bookings);
+    tryRender(data.params?.structuredContent ?? data.structuredContent ?? data.result);
   });
 
   window.parent?.postMessage({ jsonrpc: '2.0', id: 1, method: 'ui/initialize', params: {} }, '*');
