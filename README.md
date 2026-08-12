@@ -53,7 +53,17 @@ Add this to `~/Library/Application Support/Claude/claude_desktop_config.json` an
 }
 ```
 
+Then quit Claude completely and reopen it; the config is only read at launch. The server appears under the "Add files, connectors, and more" control at the bottom-left of the composer, via Connectors, then Manage connectors.
+
 No tunnel, and nothing for an administrator to have switched off.
+
+If it does not appear, the logs say why:
+
+```bash
+tail -n 30 -f ~/Library/Logs/Claude/mcp*.log
+```
+
+`mcp-server-assistant-channel-poc.log` carries this server's stderr. The usual causes are a relative path in `args`, which must be absolute, and a `command` that is not on the app's PATH, which is why the config names the node binary in full.
 
 ## Using it in ChatGPT
 
