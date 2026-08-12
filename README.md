@@ -29,6 +29,38 @@ curl -s -X POST http://localhost:3001/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_slots","arguments":{}}}'
 ```
 
+## Using it in ChatGPT
+
+ChatGPT cannot reach `localhost`, so the server needs a public HTTPS address:
+
+```bash
+npm start                 # terminal one
+ngrok http 3001           # terminal two, copy the https URL
+```
+
+Then in ChatGPT: **Settings → Connectors → create a custom connector**, paste `https://<your-ngrok-host>/mcp`, set authentication to none, name it, save. Custom connectors need Plus, Pro, Team, Enterprise or Edu; Free cannot add them. On a Business or Enterprise workspace developer mode is off until an administrator enables it under Workspace Settings → Permissions & Roles → Connected Data.
+
+Worth trying, in order:
+
+1. "What appointment slots are available?" — plain text, no card
+2. "Show my bookings" — the card
+3. "Book slot-101" — the tool refuses, ChatGPT should tell you what it is about to do and ask; say yes and it books
+4. "Book slot-101" again — replayed, nothing changes
+5. "Who am I?" — the shared demo account, which is the point
+
+Two things that will catch you out. A free ngrok URL changes every restart, so the connector points at a dead host and needs adding again. And ChatGPT snapshots what a connector can do when you first add it, so after changing tools you remove and re-add rather than toggling off and on.
+
+### Why the card is registered twice
+
+The two host families do not agree on how a tool declares a UI:
+
+| | Tool metadata | Resource mimeType | Data reaches the card via |
+|---|---|---|---|
+| MCP Apps (Claude, Copilot, Goose) | `_meta.ui.resourceUri` | `text/html;profile=mcp-app` | a postMessage |
+| OpenAI Apps SDK (ChatGPT) | `_meta["openai/outputTemplate"]` | `text/html+skybridge` | `window.openai.toolOutput` |
+
+One HTML file, registered under two URIs, and `get_bookings` advertises both keys. Each host reads the one it knows and ignores the other. This is what a host-neutral tool contract actually costs today.
+
 ## The tools
 
 | Tool | Reads or writes | What it demonstrates |
