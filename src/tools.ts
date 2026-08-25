@@ -57,6 +57,21 @@ const toolError = (message: string) => ({
   isError: true,
 });
 
+/**
+ * Not an error. A question.
+ *
+ * This came back through toolError at first, and Claude painted the confirmation gate red
+ * and labelled it Failed before going on to ask the user to confirm. A guarded write is the
+ * point of this repository, so a host presenting the guard as a malfunction teaches the user
+ * that the product is broken. isError means the tool could not run; this ran, and declined
+ * to save. The refusal is in the text, and `saved: false` is there for anything reading the
+ * structured output.
+ */
+const needsConfirmation = (message: string) => ({
+  content: [{ type: 'text' as const, text: message }],
+  structuredContent: { saved: false },
+});
+
 const secret = confirmationSecret();
 
 /**
@@ -217,7 +232,7 @@ export const buildServer = (authorization?: string) => {
         intentKey('book_slot', { slotId }),
         confirmationToken,
       );
-      if (!gate.ok) return toolError(gate.message);
+      if (!gate.ok) return needsConfirmation(gate.message);
 
       try {
         const { booking, replayed } = bookSlot(store, principal, slotId, idempotencyKey);
@@ -258,7 +273,7 @@ export const buildServer = (authorization?: string) => {
         confirmationToken,
       );
       if (!gate.ok) {
-        return toolError(gate.message);
+        return needsConfirmation(gate.message);
       }
 
       try {
