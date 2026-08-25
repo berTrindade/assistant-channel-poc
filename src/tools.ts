@@ -21,7 +21,7 @@ import { confirmationSecret, intentKey, issueToken, redeemToken } from './confir
 import { resolvePrincipal } from './principal.ts';
 import { RuleViolation, bookSlot, cancelBooking } from './rules.ts';
 import { bookingsFor, createStore, listOpenSlots } from './store.ts';
-import { auditView, getView, putView } from './views.ts';
+import { auditView, frameView, getView, putView } from './views.ts';
 
 /**
  * The same card, declared twice, because the two hosts that render cards do not agree.
@@ -285,6 +285,8 @@ export const buildServer = (authorization?: string) => {
         'var(--color-text-primary), var(--color-background-primary), var(--color-border-secondary),',
         'var(--font-sans) and var(--border-radius-md). Do not write a colour of your own: no hex',
         'codes, no rgb(), no named colours. A fallback inside var() is fine.',
+        'To make something clickable, put data-say="what the user would type" on it: clicking',
+        'sends that text to the conversation. Do not write script tags, they will not run.',
       ].join(' '),
       inputSchema: {
         html: z
@@ -325,25 +327,11 @@ export const buildServer = (authorization?: string) => {
     }),
   );
 
-  /**
-   * The wrapper is the frame, and it is all we own here. Host variables with the same
-   * fallbacks the card uses, so a fragment that ignores the instruction still renders
-   * legibly rather than as black text on a transparent ground.
-   */
-  const readView = () => `<style>
-  body {
-    margin: 0;
-    padding: 16px 18px;
-    font: 15px/1.5 var(--font-sans, ui-sans-serif, system-ui, sans-serif);
-    color: var(--color-text-primary, #16202c);
-    background: var(--color-background-primary, #ffffff);
-  }
-  .empty { color: var(--color-text-secondary, #5c6b7a); font-size: 13px; }
-</style>
-${getView()}`;
+  const readViewFrame = () =>
+    fs.readFile(path.join(import.meta.dirname, 'app', 'view.html'), 'utf-8');
 
   registerAppResource(server, 'model-view', VIEW_URI, { mimeType: RESOURCE_MIME_TYPE }, async () => ({
-    contents: [{ uri: VIEW_URI, mimeType: RESOURCE_MIME_TYPE, text: readView() }],
+    contents: [{ uri: VIEW_URI, mimeType: RESOURCE_MIME_TYPE, text: frameView(await readViewFrame(), getView()) }],
   }));
 
   server.registerResource(
@@ -351,7 +339,7 @@ ${getView()}`;
     VIEW_URI_OPENAI,
     { mimeType: SKYBRIDGE_MIME },
     async () => ({
-      contents: [{ uri: VIEW_URI_OPENAI, mimeType: SKYBRIDGE_MIME, text: readView() }],
+      contents: [{ uri: VIEW_URI_OPENAI, mimeType: SKYBRIDGE_MIME, text: frameView(await readViewFrame(), getView()) }],
     }),
   );
 
