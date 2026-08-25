@@ -2,7 +2,7 @@
 
 A working reference implementation of the **assistant channel** shape: an existing product exposed to an assistant somebody else runs, as a set of tools it can call. You own the contract and the writes. You do not own the model, the chat, or the rendering.
 
-The shape, and the six questions that disqualify most candidates, are in [solution-catalogue](https://github.com/berTrindade/solution-catalogue/blob/main/types/assistant-channel.md). Why each choice here was made, and what it cost, is in [decisions/](decisions/): every record exists because something was built, run against a real host, and found wrong in a way the specification did not predict.
+Why each choice here was made, and what it cost, is in [decisions/](decisions/): every record exists because something was built, run against a real host, and found wrong in a way the specification did not predict.
 
 ## Demo
 
@@ -10,7 +10,7 @@ https://github.com/user-attachments/assets/11ef5754-0ab4-487e-b0de-80cd0f318932
 
 ## Why this exists
 
-The catalogue's proof for this shape guards one monotonic reading, the easiest guarded write there is: one user, one direction, no contention. It proves the shape and leaves the hard half untested.
+The usual demo of this shape guards one monotonic reading, the easiest guarded write there is: one user, one direction, no contention. It proves the shape and leaves the hard half untested.
 
 Booking a slot is **contended** (two callers reach for the last place), **confirmed** (nothing saves without a human answering), and **idempotent** (a retried call does not book twice). Those three properties are why the write rules are your code rather than the model's judgement.
 
