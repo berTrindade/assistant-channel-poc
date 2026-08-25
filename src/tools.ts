@@ -30,8 +30,8 @@ import { bookingsFor, createStore, listOpenSlots } from './store.ts';
  *
  * One HTML file, two registrations, and the tool advertises both keys. Hosts read the one
  * they know and ignore the other. This is what "host-neutral tool contract" costs in
- * practice today, and it is the sort of thing that belongs in the catalogue page rather
- * than being rediscovered per engagement.
+ * practice today, and it is the sort of thing worth writing down once rather than
+ * being rediscovered per engagement.
  *
  * ponytail: two registrations beat a content-negotiation layer. Delete one the day the
  * conventions converge.
