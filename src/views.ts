@@ -32,6 +32,24 @@ export const putView = async (html: string): Promise<void> => {
 
 export const getView = (): string => current;
 
+/** The hole in the built frame that the model's surface drops into. */
+export const SURFACE_MARKER = '<!--SURFACE-->';
+
+/**
+ * Put the surface inside the frame.
+ *
+ * Fails loudly rather than serving a frame with no surface in it, because the only way the
+ * marker goes missing is a stale build, and a blank card in a real host is the hardest
+ * thing in this repository to debug.
+ */
+export const frameView = (frame: string, surface: string): string => {
+  if (!frame.includes(SURFACE_MARKER)) {
+    throw new Error('view.html has no surface marker: run npm run build:card');
+  }
+
+  return frame.replace(SURFACE_MARKER, surface);
+};
+
 /**
  * Did the model style this with the host's tokens, or with colours it made up?
  *

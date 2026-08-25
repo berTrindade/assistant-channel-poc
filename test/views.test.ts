@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { auditView } from '../src/views.ts';
+import { auditView, frameView, SURFACE_MARKER } from '../src/views.ts';
 
 test('a surface styled with host tokens passes', () => {
   const audit = auditView(
@@ -36,4 +36,17 @@ test('using no colour at all is not compliance, it is an empty surface', () => {
 
   assert.equal(audit.compliant, false);
   assert.deepEqual(audit.hostVariables, []);
+});
+
+test('the surface drops into the frame where the marker was', () => {
+  const framed = frameView(`<style>body{}</style>\n${SURFACE_MARKER}\n<div id="hostinfo"></div>`, '<p>Hi</p>');
+
+  assert.match(framed, /<p>Hi<\/p>/);
+  assert.equal(framed.includes(SURFACE_MARKER), false);
+});
+
+test('a frame built without the marker fails rather than rendering blank', () => {
+  // A stale build is the only way this happens, and a blank card in a real host is the
+  // hardest thing here to debug.
+  assert.throws(() => frameView('<style>body{}</style>', '<p>Hi</p>'), /run npm run build:card/);
 });
