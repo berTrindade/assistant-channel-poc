@@ -21,7 +21,7 @@ import { confirmationSecret, intentKey, issueToken, redeemToken } from './confir
 import { resolvePrincipal } from './principal.ts';
 import { RuleViolation, bookSlot, cancelBooking } from './rules.ts';
 import { bookingsFor, createStore, listOpenSlots } from './store.ts';
-import { auditView, frameView, getView, putView } from './views.ts';
+import { auditView, putView } from './views.ts';
 
 /**
  * The same card, declared twice, because the two hosts that render cards do not agree.
@@ -320,9 +320,12 @@ export const buildServer = (authorization?: string) => {
       // The audit goes to the log and to structured output, never into the text. Telling
       // the model it broke the rule would have it correct itself, and unprompted
       // compliance is the number this tool exists to measure.
+      // The surface rides in the result, not in the resource: the host reads the resource
+      // before it calls the tool, so anything injected server-side arrives too late. See
+      // views.ts.
       return {
         content: [{ type: 'text', text: 'Rendered.' }],
-        structuredContent: { audit: auditView(html) },
+        structuredContent: { html, audit: auditView(html) },
       };
     },
   );
@@ -346,7 +349,7 @@ export const buildServer = (authorization?: string) => {
     fs.readFile(path.join(import.meta.dirname, 'app', 'view.html'), 'utf-8');
 
   registerAppResource(server, 'model-view', VIEW_URI, { mimeType: RESOURCE_MIME_TYPE }, async () => ({
-    contents: [{ uri: VIEW_URI, mimeType: RESOURCE_MIME_TYPE, text: frameView(await readViewFrame(), getView()) }],
+    contents: [{ uri: VIEW_URI, mimeType: RESOURCE_MIME_TYPE, text: await readViewFrame() }],
   }));
 
   server.registerResource(
@@ -354,7 +357,7 @@ export const buildServer = (authorization?: string) => {
     VIEW_URI_OPENAI,
     { mimeType: SKYBRIDGE_MIME },
     async () => ({
-      contents: [{ uri: VIEW_URI_OPENAI, mimeType: SKYBRIDGE_MIME, text: frameView(await readViewFrame(), getView()) }],
+      contents: [{ uri: VIEW_URI_OPENAI, mimeType: SKYBRIDGE_MIME, text: await readViewFrame() }],
     }),
   );
 
