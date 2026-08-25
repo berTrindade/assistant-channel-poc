@@ -13,13 +13,17 @@ import fs from 'node:fs/promises';
 
 import { auditView, VIEW_LOG } from '../src/views.ts';
 
+// An optional path, so a run before a change and a run after it can be compared rather than
+// averaged together.
+const log = process.argv[2] ?? VIEW_LOG;
+
 const lines = await fs
-  .readFile(VIEW_LOG, 'utf-8')
+  .readFile(log, 'utf-8')
   .then((text) => text.split('\n').filter(Boolean))
   .catch(() => []);
 
 if (!lines.length) {
-  console.error(`No surfaces logged yet. Ask a host to call render_view, then run this again.`);
+  console.error(`No surfaces in ${log}. Ask a host to call render_view, then run this again.`);
   process.exit(0);
 }
 
