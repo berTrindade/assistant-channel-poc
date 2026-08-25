@@ -84,11 +84,11 @@ Then in ChatGPT: **Settings → Connectors → create a custom connector**, past
 
 Worth trying, in order:
 
-1. "What appointment slots are available?" — plain text, no card
-2. "Show my bookings" — the card
-3. "Book slot-101" — the tool refuses, ChatGPT should tell you what it is about to do and ask; say yes and it books
-4. "Book slot-101" again — replayed, nothing changes
-5. "Who am I?" — the shared demo account, which is the point
+1. "What appointment slots are available?": plain text, no card
+2. "Show my bookings": the card
+3. "Book slot-101": the tool refuses, ChatGPT should tell you what it is about to do and ask; say yes and it books
+4. "Book slot-101" again: replayed, nothing changes
+5. "Who am I?": the shared demo account, which is the point
 
 Two things that will catch you out. A free ngrok URL changes every restart, so the connector points at a dead host and needs adding again. And ChatGPT snapshots what a connector can do when you first add it, so after changing tools you remove and re-add rather than toggling off and on.
 
