@@ -127,9 +127,16 @@ npm run tally:views
 ```
 surfaces        2
 compliant       1 (50%)
-colours invented 1: #ff0000
-tokens used     --color-text-primary x1, --border-radius-md x1
+colours invented 0
+tokens invented 1: --color-success
+tokens used     --font-sans x2, --color-text-primary x2, --color-border-secondary x2
+  2026-08-25T19:39:03.610Z  invented --color-success
 ```
+
+That invented token is the finding worth reading [0007](decisions/0007-an-invented-token-is-an-invented-colour.md)
+for. Asked to use the host's tokens, the model wrote `var(--color-success, green)`, which no
+host sends, so the fallback painted and the green was its own. The surface cited the design
+system without using it, and the first version of the audit agreed with it.
 
 The audit never appears in the tool's text response, only in its structured output. Telling
 the model it broke the rule would have it correct itself, and unprompted compliance is the
