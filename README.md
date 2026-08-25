@@ -101,7 +101,14 @@ shape underneath. The card is a file in this repository, so the model chooses no
 it: Open-ended by delivery, Controlled by authorship. `render_view` takes the HTML as a tool
 argument, so the model owns every pixel and we own only the frame around it.
 
-That second one has no enforcement point. There are no variants to withhold, because there
+The model's surface can also talk back, which is what separates this tier from a picture.
+The frame carries one delegated click handler and the contract is a single verb: any element
+the model marks with `data-say="..."` becomes clickable, and clicking it sends that text to
+the conversation as if the user had typed it. No script runs from the model's HTML and
+nothing is exposed on `window`, so the model can compose anything and still has exactly one
+way to reach the agent.
+
+That second tool has no enforcement point. There are no variants to withhold, because there
 are no components, so the only instrument left is the tool description asking the model to
 style with the host's own tokens and never to invent a colour. Nothing checks that it did.
 
@@ -131,7 +138,8 @@ src/rules.ts        the write rules: the only place determinism lives
 src/confirm.ts      the confirmation gate: server-issued, single use
 src/store.ts        channel state, in memory
 src/tools.ts        the tool contract: declarations and plumbing, no decisions
-src/views.ts        the model-authored surface, and the audit that measures compliance
+src/views.ts        the model-authored surface, the frame substitution, and the audit
+src/app/view.ts     the frame: host styling, and the one verb the surface can call
 src/server.ts       HTTP entry point
 src/stdio.ts        stdio entry point
 src/app/card.ts     the card, built against the ui/ dialect

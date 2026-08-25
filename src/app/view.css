@@ -1,0 +1,42 @@
+/*
+ * The frame, which is all we own here.
+ *
+ * Host tokens with the fallbacks the card uses, so a surface that ignores the instruction
+ * still renders legibly instead of as black text on a transparent ground. Nothing here
+ * styles the model's own markup: that would be the frame overruling the surface, and at
+ * this tier the surface is the point.
+ */
+:root { color-scheme: light dark; }
+
+body {
+  margin: 0;
+  padding: 16px 18px;
+  font: 15px/1.5 var(--font-sans, ui-sans-serif, system-ui, -apple-system, sans-serif);
+  color: var(--color-text-primary, #16202c);
+  background: var(--color-background-primary, #ffffff);
+}
+
+/* Anything the model marks as clickable should look and behave like it is. */
+[data-say] { cursor: pointer; }
+[data-say]:focus-visible { outline: 2px solid var(--color-ring-primary, #1f5f8b); outline-offset: 2px; }
+
+#hostinfo {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-secondary, #e3e8ee);
+  color: var(--color-text-secondary, #5c6b7a);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: var(--color-text-primary, #e8edf3);
+    background: var(--color-background-primary, #12171d);
+  }
+
+  #hostinfo {
+    border-color: var(--color-border-secondary, #262f3a);
+    color: var(--color-text-secondary, #93a1b1);
+  }
+}
