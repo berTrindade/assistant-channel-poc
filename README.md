@@ -92,6 +92,36 @@ One HTML file, registered under two URIs, and `get_bookings` advertises both key
 | `get_bookings` | read | A card view, via a `ui://` MCP Apps resource |
 | `book_slot` | write | Confirmation, contention, idempotency |
 | `cancel_booking` | write | Idempotent undo, and not leaking other people's booking ids |
+| `render_view` | read | The Open-ended tier with the model actually authoring the surface |
+
+### Who designed the thing on screen
+
+`get_bookings` and `render_view` both ship a whole HTML surface, and they are not the same
+shape underneath. The card is a file in this repository, so the model chooses nothing about
+it: Open-ended by delivery, Controlled by authorship. `render_view` takes the HTML as a tool
+argument, so the model owns every pixel and we own only the frame around it.
+
+That second one has no enforcement point. There are no variants to withhold, because there
+are no components, so the only instrument left is the tool description asking the model to
+style with the host's own tokens and never to invent a colour. Nothing checks that it did.
+
+Which is measurable rather than arguable. Every submitted surface is appended to `views.log`,
+and the tally reports how often asking nicely worked:
+
+```bash
+npm run tally:views
+```
+
+```
+surfaces        2
+compliant       1 (50%)
+colours invented 1: #ff0000
+tokens used     --color-text-primary x1, --border-radius-md x1
+```
+
+The audit never appears in the tool's text response, only in its structured output. Telling
+the model it broke the rule would have it correct itself, and unprompted compliance is the
+number worth having.
 
 ## What each file is for
 
@@ -101,6 +131,7 @@ src/rules.ts        the write rules: the only place determinism lives
 src/confirm.ts      the confirmation gate: server-issued, single use
 src/store.ts        channel state, in memory
 src/tools.ts        the tool contract: declarations and plumbing, no decisions
+src/views.ts        the model-authored surface, and the audit that measures compliance
 src/server.ts       HTTP entry point
 src/stdio.ts        stdio entry point
 src/app/card.ts     the card, built against the ui/ dialect

@@ -11,6 +11,7 @@
     "build:card": "node scripts/build-card.mjs",
     "start": "node src/server.ts",
     "start:stdio": "node src/stdio.ts",
+    "tally:views": "node scripts/tally-views.ts",
     "test": "node --test",
     "typecheck": "tsc --noEmit"
   },
