@@ -6,7 +6,7 @@ Accepted. Superseded in part by [0004](0004-self-contained-confirmation-token.md
 
 ## Context
 
-Writes in this shape land in real records through a user interface we do not own. The catalogue's position is that confirmation belongs in code rather than in the prompt, and the first implementation took that to mean a `confirm: boolean` argument on each write tool, described as "set to true only after the user has agreed".
+Writes in this shape land in real records through a user interface we do not own. Confirmation belongs in code rather than in the prompt, and the first implementation took that to mean a `confirm: boolean` argument on each write tool, described as "set to true only after the user has agreed".
 
 A real host disproved it in under a minute. Told "Book slot-101", Claude called `book_slot` with `confirm: true` on the first attempt, reasoning that the instruction was itself the agreement. The booking landed with nothing asked and no opportunity to decline.
 
