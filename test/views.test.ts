@@ -1,7 +1,32 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { auditView } from '../src/views.ts';
+import { auditView, HOST_TOKENS } from '../src/views.ts';
+
+test('the token list is the whole spec vocabulary, all 76 of it', () => {
+  // If this number moves, the spec moved, and the audit is measuring against the wrong
+  // contract until someone regenerates the list from McpUiStyleVariableKey.
+  assert.equal(HOST_TOKENS.size, 76);
+  assert.equal(HOST_TOKENS.has('--color-text-success'), true);
+  assert.equal(HOST_TOKENS.has('--color-success'), false);
+});
+
+test('a token that no host sends is an invented colour, whatever it looks like', () => {
+  // Found in a real run: asked to use the host's tokens, the model wrote this. There is no
+  // --color-success in the spec, so the fallback paints and the green is the model's own.
+  const audit = auditView('<span style="color: var(--color-success, green)">Confirmed</span>');
+
+  assert.equal(audit.compliant, false);
+  assert.deepEqual(audit.unknownVariables, ['--color-success']);
+  assert.deepEqual(audit.hostVariables, []);
+});
+
+test('the real success token passes, since that one arrives', () => {
+  const audit = auditView('<span style="color: var(--color-text-success, green)">Confirmed</span>');
+
+  assert.equal(audit.compliant, true);
+  assert.deepEqual(audit.hostVariables, ['--color-text-success']);
+});
 
 test('a surface styled with host tokens passes', () => {
   const audit = auditView(

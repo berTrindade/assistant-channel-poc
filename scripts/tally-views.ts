@@ -30,6 +30,7 @@ const audits = lines.map((line) => {
 
 const compliant = audits.filter((audit) => audit.compliant);
 const invented = audits.flatMap((audit) => audit.inlineColours);
+const madeUpTokens = audits.flatMap((audit) => audit.unknownVariables);
 const tokens = new Map<string, number>();
 
 for (const audit of audits) {
@@ -44,6 +45,11 @@ console.error(`surfaces        ${audits.length}`);
 console.error(`compliant       ${compliant.length} (${pct}%)`);
 console.error(`colours invented ${invented.length}${invented.length ? `: ${[...new Set(invented)].join(', ')}` : ''}`);
 console.error(
+  `tokens invented ${madeUpTokens.length}${
+    madeUpTokens.length ? `: ${[...new Set(madeUpTokens)].join(', ')}` : ''
+  }`,
+);
+console.error(
   `tokens used     ${
     tokens.size
       ? [...tokens]
@@ -57,5 +63,12 @@ console.error(
 
 for (const audit of audits) {
   if (audit.compliant) continue;
-  console.error(`  ${audit.at}  ${audit.inlineColours.join(' ') || 'no host tokens used'}`);
+
+  const why = [
+    ...audit.inlineColours.map((colour) => `wrote ${colour}`),
+    ...audit.unknownVariables.map((name) => `invented ${name}`),
+    ...(audit.hostVariables.length ? [] : ['used no host tokens']),
+  ];
+
+  console.error(`  ${audit.at}  ${why.join(', ')}`);
 }
