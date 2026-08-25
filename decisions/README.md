@@ -25,3 +25,4 @@ Every record here was earned. Each one exists because something was built, run a
 | [0003](0003-server-issued-confirmation.md) | The confirmation is issued by the server, not claimed by the model | Accepted |
 | [0004](0004-self-contained-confirmation-token.md) | Confirmation tokens carry their own proof | Accepted, supersedes part of 0003 |
 | [0005](0005-declare-the-card-twice.md) | Declare the card under both host conventions | Accepted |
+| [0006](0006-refusing-is-not-failing.md) | A refusal to save is not a tool failure | Accepted |
