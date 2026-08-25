@@ -11,7 +11,16 @@
  * never run an npm script.
  */
 
-import { App } from '@modelcontextprotocol/ext-apps';
+import {
+  App,
+  applyDocumentTheme,
+  applyHostFonts,
+  applyHostStyleVariables,
+} from '@modelcontextprotocol/ext-apps';
+
+// The SDK's own name for this type collides with another export at the package root, so
+// take it from the method that returns it.
+type HostContext = NonNullable<ReturnType<App['getHostContext']>>;
 
 type Booking = {
   id: string;
@@ -58,6 +67,49 @@ const render = (bookings: Booking[]): void => {
   );
 };
 
+/**
+ * Say what the host actually sent.
+ *
+ * Whether a host themes its cards at all is the open question, and the answer differs
+ * per host. A line in the card is the cheapest way to read the answer from inside a real
+ * client, where there are no devtools to open.
+ *
+ * ponytail: delete once we have the answer for the hosts we care about.
+ */
+const reportHostStyles = (ctx: HostContext): void => {
+  const wrap = document.querySelector('.wrap');
+  if (!wrap) return;
+
+  const variables = Object.values(ctx.styles?.variables ?? {}).filter(Boolean).length;
+  const existing = document.querySelector<HTMLElement>('.hostinfo');
+  const line = existing ?? el('div', 'hostinfo');
+
+  line.textContent = [
+    `theme ${ctx.theme ?? 'not sent'}`,
+    `${variables} style variables`,
+    ctx.styles?.css?.fonts ? 'fonts sent' : 'no fonts',
+  ].join(' \u00b7 ');
+
+  if (!existing) wrap.append(line);
+};
+
+/**
+ * Wear the host's colours rather than guessing them.
+ *
+ * The first version painted a fixed palette and approximated dark mode through
+ * prefers-color-scheme, on the assumption that a sandboxed frame is told nothing about
+ * the app around it. It is told: the host context carries CSS custom properties, a font
+ * stylesheet and a theme. Every field is optional, which is why card.css keeps its own
+ * values as fallbacks and the host only wins where it has an opinion.
+ */
+const adoptHostStyles = (ctx?: HostContext): void => {
+  if (!ctx) return;
+  if (ctx.styles?.variables) applyHostStyleVariables(ctx.styles.variables);
+  if (ctx.styles?.css?.fonts) applyHostFonts(ctx.styles.css.fonts);
+  if (ctx.theme) applyDocumentTheme(ctx.theme);
+  reportHostStyles(ctx);
+};
+
 const app = new App({ name: 'bookings-card', version: '0.1.0' });
 
 app.ontoolresult = (result) => {
@@ -65,4 +117,7 @@ app.ontoolresult = (result) => {
   render(structured?.bookings ?? []);
 };
 
+app.onhostcontextchanged = adoptHostStyles;
+
 await app.connect();
+adoptHostStyles(app.getHostContext());
