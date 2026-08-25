@@ -12,7 +12,7 @@ The two host families do not agree on how a tool declares a UI:
 
 | | Tool metadata | Resource mimeType | How data reaches the card |
 |---|---|---|---|
-| MCP Apps (Claude, Copilot, Goose) | `_meta.ui.resourceUri` | `text/html;profile=mcp-app` | a postMessage handshake |
+| MCP Apps (Claude, Copilot) | `_meta.ui.resourceUri` | `text/html;profile=mcp-app` | a postMessage handshake |
 | OpenAI Apps SDK (ChatGPT) | `_meta["openai/outputTemplate"]` | `text/html+skybridge` | `window.openai.toolOutput` |
 
 The card was first built for the MCP Apps convention only, with a hand-rolled postMessage listener rather than the SDK's `App` class. In Claude it produced an iframe that rendered nothing: the host created the frame and the contents stayed blank, because the `ui/` dialect is a JSON-RPC protocol with a handshake rather than a message shape that can be inferred.

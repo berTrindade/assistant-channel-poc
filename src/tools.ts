@@ -25,7 +25,7 @@ import { bookingsFor, createStore, listOpenSlots } from './store.ts';
 /**
  * The same card, declared twice, because the two hosts that render cards do not agree.
  *
- *   MCP Apps (Claude, Copilot, Goose)  _meta.ui.resourceUri  + text/html;profile=mcp-app
+ *   MCP Apps (Claude, Copilot)         _meta.ui.resourceUri           + text/html;profile=mcp-app
  *   OpenAI Apps SDK (ChatGPT)          _meta['openai/outputTemplate'] + text/html+skybridge
  *
  * One HTML file, two registrations, and the tool advertises both keys. Hosts read the one
