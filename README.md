@@ -8,9 +8,7 @@ Why each choice was made, and what it cost, is in [decisions/](decisions/). Ever
 
 ## Demo
 
-<!-- Drag "Screen Recording 2026-08-12 at 11.54.13.mov" into a GitHub comment or PR, then paste the resulting user-images URL here. -->
-
-https://github.com/user-attachments/assets/REPLACE-ME
+https://github.com/user-attachments/assets/11ef5754-0ab4-487e-b0de-80cd0f318932
 
 ## Why this exists
 
