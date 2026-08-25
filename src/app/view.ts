@@ -29,6 +29,12 @@ const report = (text: string): void => {
   if (line) line.textContent = text;
 };
 
+app.ontoolresult = (result) => {
+  const surface = document.getElementById('surface');
+  const { html } = (result.structuredContent ?? {}) as { html?: string };
+  if (surface && html) surface.innerHTML = html;
+};
+
 app.onhostcontextchanged = (ctx) => {
   adoptHostStyles(ctx);
   report(describeHostStyles(ctx));
