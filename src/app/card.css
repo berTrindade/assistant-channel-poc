@@ -1,10 +1,44 @@
-:root { color-scheme: light dark; }
+/*
+ * The host's palette where it offers one, ours where it does not.
+ *
+ * Every --color-* and --font-* read below is a value the host may send through the app
+ * context, which card.ts applies to the document root. They are dereferenced once here
+ * so the rest of the file never has to know, and each carries the colour this card used
+ * to hardcode as its fallback. The dark block swaps only those fallbacks, so a host that
+ * themes us wins in either scheme and a host that says nothing still looks deliberate.
+ */
+:root {
+  color-scheme: light dark;
+
+  --ink: var(--color-text-primary, #16202c);
+  --ink-muted: var(--color-text-secondary, #5c6b7a);
+  --ground: var(--color-background-primary, #ffffff);
+  --hair: var(--color-border-secondary, #e3e8ee);
+  --ok-ground: var(--color-background-success, #e6f2ec);
+  --ok-ink: var(--color-text-success, #1c6b4a);
+  --off-ground: var(--color-background-disabled, #f0f1f3);
+  --off-ink: var(--color-text-disabled, #6b7280);
+  --sans: var(--font-sans, ui-sans-serif, system-ui, -apple-system, sans-serif);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: var(--color-text-primary, #e8edf3);
+    --ink-muted: var(--color-text-secondary, #93a1b1);
+    --ground: var(--color-background-primary, #12171d);
+    --hair: var(--color-border-secondary, #262f3a);
+    --ok-ground: var(--color-background-success, #14342a);
+    --ok-ink: var(--color-text-success, #7fd3ac);
+    --off-ground: var(--color-background-disabled, #23282f);
+    --off-ink: var(--color-text-disabled, #93a1b1);
+  }
+}
 
 body {
   margin: 0;
-  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
-  color: #16202c;
-  background: #ffffff;
+  font: 15px/1.5 var(--sans);
+  color: var(--ink);
+  background: var(--ground);
 }
 
 .wrap { padding: 16px 18px; }
@@ -14,7 +48,7 @@ h1 {
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5c6b7a;
+  color: var(--ink-muted);
 }
 
 .row {
@@ -23,14 +57,14 @@ h1 {
   justify-content: space-between;
   gap: 16px;
   padding: 11px 0;
-  border-bottom: 1px solid #e3e8ee;
+  border-bottom: 1px solid var(--hair);
 }
 
 .row:last-child { border-bottom: 0; }
 .row.cancelled .service { text-decoration: line-through; }
 
 .service { font-weight: 600; }
-.when, .empty { color: #5c6b7a; font-size: 13px; }
+.when, .empty { color: var(--ink-muted); font-size: 13px; }
 .empty { padding: 11px 0; }
 
 .status {
@@ -38,17 +72,18 @@ h1 {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--border-radius-full, 999px);
   white-space: nowrap;
 }
 
-.status.confirmed { background: #e6f2ec; color: #1c6b4a; }
-.status.cancelled { background: #f0f1f3; color: #6b7280; }
+.status.confirmed { background: var(--ok-ground); color: var(--ok-ink); }
+.status.cancelled { background: var(--off-ground); color: var(--off-ink); }
 
-@media (prefers-color-scheme: dark) {
-  body { color: #e8edf3; background: #12171d; }
-  h1, .when, .empty { color: #93a1b1; }
-  .row { border-color: #262f3a; }
-  .status.confirmed { background: #14342a; color: #7fd3ac; }
-  .status.cancelled { background: #23282f; color: #93a1b1; }
+.hostinfo {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hair);
+  color: var(--ink-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
 }
