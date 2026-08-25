@@ -98,7 +98,7 @@ The two host families do not agree on how a tool declares a UI:
 
 | | Tool metadata | Resource mimeType | Data reaches the card via |
 |---|---|---|---|
-| MCP Apps (Claude, Copilot, Goose) | `_meta.ui.resourceUri` | `text/html;profile=mcp-app` | a postMessage |
+| MCP Apps (Claude, Copilot) | `_meta.ui.resourceUri` | `text/html;profile=mcp-app` | a postMessage |
 | OpenAI Apps SDK (ChatGPT) | `_meta["openai/outputTemplate"]` | `text/html+skybridge` | `window.openai.toolOutput` |
 
 One HTML file, registered under two URIs, and `get_bookings` advertises both keys. Each host reads the one it knows and ignores the other. This is what a host-neutral tool contract actually costs today.
