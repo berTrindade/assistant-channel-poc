@@ -6,8 +6,8 @@
  * `node src/stdio.ts` directly and never run an npm script, so a build that has not run
  * is a card that does not exist.
  *
- * Two surfaces now. The card is ours, markup and all. The view is an empty frame that paints
- * whatever HTML the model sent back in its tool result.
+ * Two surfaces now. The card is ours, markup and all. The view is a broker: it hands the
+ * model's HTML to a sandboxed iframe and relays a fixed list of requests back to the host.
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -35,7 +35,7 @@ const surfaces = [
     out: 'view.html',
     // The frame is fetched before the tool runs, so the surface arrives afterwards over the
     // ui/ channel and view.ts paints it in here.
-    body: `<div id="surface"></div>
+    body: `<iframe id="surface" sandbox="allow-scripts" title="Model-authored surface"></iframe>
 <div id="hostinfo"></div>`,
   },
 ];
