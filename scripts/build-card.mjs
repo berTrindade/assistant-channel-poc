@@ -6,8 +6,8 @@
  * `node src/stdio.ts` directly and never run an npm script, so a build that has not run
  * is a card that does not exist.
  *
- * Two surfaces now. The card is ours, markup and all. The view is a frame with a hole in
- * it, and the server fills the hole with HTML the model wrote.
+ * Two surfaces now. The card is ours, markup and all. The view is an empty frame that paints
+ * whatever HTML the model sent back in its tool result.
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -33,9 +33,9 @@ const surfaces = [
     entry: 'view.ts',
     css: 'view.css',
     out: 'view.html',
-    // The marker the server replaces. src/views.ts owns the substitution and fails loudly
-    // if this ever goes missing.
-    body: `<!--SURFACE-->
+    // The frame is fetched before the tool runs, so the surface arrives afterwards over the
+    // ui/ channel and view.ts paints it in here.
+    body: `<div id="surface"></div>
 <div id="hostinfo"></div>`,
   },
 ];
