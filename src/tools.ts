@@ -21,6 +21,7 @@ import { confirmationSecret, intentKey, issueToken, redeemToken } from './confir
 import { resolvePrincipal } from './principal.ts';
 import { RuleViolation, bookSlot, cancelBooking } from './rules.ts';
 import { bookingsFor, createStore, listOpenSlots } from './store.ts';
+import { auditView, getView, putView } from './views.ts';
 
 /**
  * The same card, declared twice, because the two hosts that render cards do not agree.
@@ -39,6 +40,13 @@ import { bookingsFor, createStore, listOpenSlots } from './store.ts';
 const CARD_URI = 'ui://bookings/card.html';
 const CARD_URI_OPENAI = 'ui://bookings/card-openai.html';
 const SKYBRIDGE_MIME = 'text/html+skybridge';
+
+/**
+ * The model-authored surface, which needs its own pair of URIs for the same reason the
+ * card does. See views.ts for why this tool exists at all.
+ */
+const VIEW_URI = 'ui://views/current.html';
+const VIEW_URI_OPENAI = 'ui://views/current-openai.html';
 
 // One store for the process. The MCP server instance is per request (the protocol is
 // stateless), so anything that must outlive a request cannot live inside it.
@@ -266,6 +274,42 @@ export const buildServer = (authorization?: string) => {
     },
   );
 
+  registerAppTool(
+    server,
+    'render_view',
+    {
+      title: 'Render a view',
+      description: [
+        'Render your own HTML as a card in this conversation, for when a table or a small chart',
+        'says it better than a sentence. Style it only with the host CSS variables, such as',
+        'var(--color-text-primary), var(--color-background-primary), var(--color-border-secondary),',
+        'var(--font-sans) and var(--border-radius-md). Do not write a colour of your own: no hex',
+        'codes, no rgb(), no named colours. A fallback inside var() is fine.',
+      ].join(' '),
+      inputSchema: {
+        html: z
+          .string()
+          .describe('An HTML fragment. No script tags, no external images, fonts or stylesheets.'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+      _meta: {
+        ui: { resourceUri: VIEW_URI },
+        'openai/outputTemplate': VIEW_URI_OPENAI,
+      },
+    },
+    async ({ html }) => {
+      await putView(html);
+
+      // The audit goes to the log and to structured output, never into the text. Telling
+      // the model it broke the rule would have it correct itself, and unprompted
+      // compliance is the number this tool exists to measure.
+      return {
+        content: [{ type: 'text', text: 'Rendered.' }],
+        structuredContent: { audit: auditView(html) },
+      };
+    },
+  );
+
   const readCard = () => fs.readFile(path.join(import.meta.dirname, 'app', 'card.html'), 'utf-8');
 
   registerAppResource(server, 'bookings-card', CARD_URI, { mimeType: RESOURCE_MIME_TYPE }, async () => ({
@@ -278,6 +322,36 @@ export const buildServer = (authorization?: string) => {
     { mimeType: SKYBRIDGE_MIME },
     async () => ({
       contents: [{ uri: CARD_URI_OPENAI, mimeType: SKYBRIDGE_MIME, text: await readCard() }],
+    }),
+  );
+
+  /**
+   * The wrapper is the frame, and it is all we own here. Host variables with the same
+   * fallbacks the card uses, so a fragment that ignores the instruction still renders
+   * legibly rather than as black text on a transparent ground.
+   */
+  const readView = () => `<style>
+  body {
+    margin: 0;
+    padding: 16px 18px;
+    font: 15px/1.5 var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+    color: var(--color-text-primary, #16202c);
+    background: var(--color-background-primary, #ffffff);
+  }
+  .empty { color: var(--color-text-secondary, #5c6b7a); font-size: 13px; }
+</style>
+${getView()}`;
+
+  registerAppResource(server, 'model-view', VIEW_URI, { mimeType: RESOURCE_MIME_TYPE }, async () => ({
+    contents: [{ uri: VIEW_URI, mimeType: RESOURCE_MIME_TYPE, text: readView() }],
+  }));
+
+  server.registerResource(
+    'model-view-openai',
+    VIEW_URI_OPENAI,
+    { mimeType: SKYBRIDGE_MIME },
+    async () => ({
+      contents: [{ uri: VIEW_URI_OPENAI, mimeType: SKYBRIDGE_MIME, text: readView() }],
     }),
   );
 
