@@ -26,3 +26,4 @@ Every record here was earned. Each one exists because something was built, run a
 | [0004](0004-self-contained-confirmation-token.md) | Confirmation tokens carry their own proof | Accepted, supersedes part of 0003 |
 | [0005](0005-declare-the-card-twice.md) | Declare the card under both host conventions | Accepted |
 | [0006](0006-refusing-is-not-failing.md) | A refusal to save is not a tool failure | Accepted |
+| [0007](0007-an-invented-token-is-an-invented-colour.md) | A token that no host sends is an invented colour | Accepted |
