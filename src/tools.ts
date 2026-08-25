@@ -311,8 +311,15 @@ export const buildServer = (authorization?: string) => {
         'than the design system\'s.',
         'Do not write a colour of your own: no hex codes, no rgb(), no named colours. A fallback',
         'inside var() is fine, and is worth having, because a host may send only some of these.',
-        'To make something clickable, put data-say="what the user would type" on it: clicking',
-        'sends that text to the conversation. Do not write script tags, they will not run.',
+        'You may write script. The surface runs in a sandboxed iframe with no access to the',
+        'page around it, and window.mcp is available to it: mcp.say(text) sends text to the',
+        'conversation as if the user typed it, mcp.callTool(name, args) calls another tool on',
+        'this server and resolves with its result, mcp.openLink(url), mcp.requestDisplayMode',
+        '("fullscreen" or "inline"), mcp.updateContext(text), mcp.onToolResult(fn) for later',
+        'results on the same surface, mcp.onTheme(fn) and mcp.theme. Shorthand for a click:',
+        'put data-say="what the user would type" on any element.',
+        'Do not fetch anything over the network, and do not reference external images, fonts or',
+        'stylesheets: none of them are reachable from the sandbox.',
       ].join(' '),
       inputSchema: {
         html: z
