@@ -16,18 +16,9 @@ body {
   background: var(--color-background-primary, #ffffff);
 }
 
-/*
- * The sandbox. Its height is set from inside, because this document is not allowed to
- * measure it, and it is transparent so the surface sits on whatever ground the host chose.
- */
-#surface {
-  display: block;
-  width: 100%;
-  border: 0;
-  min-height: 40px;
-  background: transparent;
-  color-scheme: normal;
-}
+/* Anything the model marks as clickable should look and behave like it is. */
+[data-say] { cursor: pointer; }
+[data-say]:focus-visible { outline: 2px solid var(--color-ring-primary, #1f5f8b); outline-offset: 2px; }
 
 #hostinfo {
   margin-top: 14px;
