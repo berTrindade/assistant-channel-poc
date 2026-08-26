@@ -14,6 +14,63 @@ The usual demo of this shape guards one monotonic reading, the easiest guarded w
 
 Booking a slot is **contended** (two callers reach for the last place), **confirmed** (nothing saves without a human answering), and **idempotent** (a retried call does not book twice). Those three properties are why the write rules are your code rather than the model's judgement.
 
+## Architecture
+
+The system boundary is the point of the shape: the host owns the model, the chat and the rendering, and this repo owns the contract and the writes.
+
+```mermaid
+flowchart LR
+    user["<b>User</b><br/><i>Person</i><br/>Books and cancels in chat"]
+    host["<b>Assistant host</b><br/><i>External system</i><br/>Claude Desktop, ChatGPT<br/>Runs the model, owns the chat"]
+    poc["<b>Assistant channel PoC</b><br/><i>Software system</i><br/>Owns the tool contract<br/>and every write"]
+    product["<b>Product records</b><br/><i>External system</i><br/>Stood in for here by<br/>an in-memory store"]
+
+    user -->|"asks in natural language"| host
+    host -->|"calls tools, MCP"| poc
+    poc -->|"asks for confirmation,<br/>host elicitation"| host
+    poc -->|"reads and writes"| product
+
+    classDef external stroke-dasharray: 5 5
+    class host,product external
+```
+
+Inside the boundary, one Node process. The two entry points differ only in transport; everything below `tools.ts` is the same either way.
+
+```mermaid
+flowchart TB
+    host["<b>Assistant host</b><br/><i>External system</i>"]
+
+    subgraph poc ["Assistant channel PoC, one Node process"]
+        direction TB
+        http["<b>server.ts</b><br/>Streamable HTTP on :3001"]
+        stdio["<b>stdio.ts</b><br/>stdio, spawned by the host"]
+        tools["<b>tools.ts</b><br/>The tool contract: six tools,<br/>UI resources, no decisions"]
+        principal["<b>principal.ts</b><br/>Identity seam"]
+        confirm["<b>confirm.ts</b><br/>Confirmation gate:<br/>signed, self-verifying tokens"]
+        rules["<b>rules.ts</b><br/>Write rules: contention,<br/>idempotency, scopes"]
+        store["<b>store.ts</b><br/>Channel state, in memory"]
+        views["<b>views.ts</b><br/>Audits and logs<br/>model-authored HTML"]
+    end
+
+    card["<b>card.html</b><br/>Bundled card, painted in<br/>the host's sandboxed iframe"]
+
+    host -->|"MCP over HTTP"| http
+    host -->|"MCP over stdio"| stdio
+    http --> tools
+    stdio --> tools
+    tools -->|"who is calling"| principal
+    tools -->|"issue and redeem"| confirm
+    tools -->|"delegates every write"| rules
+    tools -->|"render_view"| views
+    tools -->|"reads"| store
+    rules -->|"the only writer"| store
+    tools -.->|"served as a ui:// resource"| card
+    card -.->|"painted by"| host
+
+    classDef external stroke-dasharray: 5 5
+    class host,card external
+```
+
 ## Running it
 
 ```bash
@@ -92,6 +149,7 @@ One HTML file, registered under two URIs, and `get_bookings` advertises both key
 | `get_bookings` | read | A card view, via a `ui://` MCP Apps resource |
 | `book_slot` | write | Confirmation, contention, idempotency |
 | `cancel_booking` | write | Idempotent undo, and not leaking other people's booking ids |
+| `render_view` | write | The model authoring the surface itself, audited but not withheld |
 | `render_view` | read | The Open-ended tier with the model actually authoring the surface |
 
 ### Who designed the thing on screen
@@ -149,6 +207,7 @@ src/principal.ts    the identity seam: one function, currently a constant
 src/rules.ts        the write rules: the only place determinism lives
 src/confirm.ts      the confirmation gate: server-issued, single use
 src/store.ts        channel state, in memory
+src/views.ts        the view broker: audits and logs model-authored HTML
 src/tools.ts        the tool contract: declarations and plumbing, no decisions
 src/views.ts        the surface log and the audit that measures compliance
 src/app/view.ts     the frame: host styling, and the one verb the surface can call
